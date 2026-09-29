@@ -21,10 +21,14 @@
 ## Building
 
 ```bash
-make
+make                # static library -> build/release/libiactraining.a
+make BUILD=debug    # debug build
+make test           # build and run the tests
+make examples       # build the examples
+make clean
 ```
 
-*(Build instructions will be refined as the project takes shape.)*
+On Windows, use MinGW-w64 from [MSYS2](https://www.msys2.org/) (`pacman -S mingw-w64-ucrt-x86_64-gcc make`).
 
 ## Usage
 
@@ -45,7 +49,7 @@ Coming soon — the API is not yet defined. Once the core is in place, this sect
 
 ## License
 
-No license has been chosen yet.
+MIT — see [LICENSE](LICENSE).
 
 ## Author
 

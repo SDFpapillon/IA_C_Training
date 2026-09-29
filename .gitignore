@@ -1,0 +1,20 @@
+# Build output
+build/
+*.o
+*.obj
+*.a
+*.lib
+*.exe
+*.out
+
+# Generated training data / frames
+*.ppm
+*.bmp
+output/
+
+# Editors / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
