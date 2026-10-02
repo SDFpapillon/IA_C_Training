@@ -73,7 +73,16 @@ typedef enum nn_activation {
     NN_ACT_LINEAR = 0,
     NN_ACT_SIGMOID,
     NN_ACT_TANH,
-    NN_ACT_RELU
+    NN_ACT_RELU,
+    /*
+     * Softmax normalizes a whole layer's outputs together (each output
+     * depends on every pre-activation value in the layer, not just its
+     * own), so it cannot be expressed as a per-scalar function. nn_forward()
+     * special-cases it on the full output vector of a layer; the scalar
+     * helpers below treat it as the identity, since it is not meaningful
+     * in isolation.
+     */
+    NN_ACT_SOFTMAX
 } nn_activation;
 
 /* Apply an activation function to a pre-activation value. */
@@ -141,6 +150,37 @@ nn_status nn_save(const nn_network *net, const char *path);
 
 /* Load a network previously written by nn_save(). */
 nn_status nn_load(const char *path, nn_network **out);
+
+/* --------------------------------------------------------------------- */
+/* Forward propagation                                                    */
+/* --------------------------------------------------------------------- */
+
+/*
+ * Reusable scratch space for nn_forward(): one buffer per layer, sized to
+ * that layer's output, allocated once and reused across calls so that
+ * nn_forward() itself never allocates.
+ */
+typedef struct nn_forward_buffer {
+    size_t n_layers;
+    nn_real **activations; /* activations[l] has length net->layers[l].n_outputs */
+} nn_forward_buffer;
+
+/* Allocate scratch space sized for net. Must be recreated if net's architecture changes. */
+nn_status nn_forward_buffer_create(const nn_network *net, nn_forward_buffer **out);
+
+/* Release scratch space. nn_forward_buffer_free(NULL) is a no-op. */
+void nn_forward_buffer_free(nn_forward_buffer *buf);
+
+/*
+ * Run a forward pass: output = activation(... activation(W1 * input + b1) ...).
+ *
+ *   input:  net->layers[0].n_inputs values.
+ *   output: net->layers[n_layers - 1].n_outputs values, written on NN_OK.
+ *   buf:    scratch space from nn_forward_buffer_create(net, ...); reused
+ *           across calls, never (re)allocated here.
+ */
+nn_status nn_forward(const nn_network *net, nn_forward_buffer *buf,
+                      const nn_real *input, nn_real *output);
 
 #ifdef __cplusplus
 }

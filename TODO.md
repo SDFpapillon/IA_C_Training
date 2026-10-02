@@ -35,10 +35,10 @@ Suggested order: top to bottom, each phase builds on the previous one.
 
 ## Phase 2 — Forward propagation
 
-- [ ] `nn_forward(net, input, output)`
-- [ ] Intermediate activation buffers (reused, no malloc per call)
-- [ ] Softmax for the output layer (classification)
-- [ ] Tests: known results on a small network with fixed weights
+- [x] `nn_forward(net, buf, input, output)` (buf = reusable scratch space, see below)
+- [x] Intermediate activation buffers (reused, no malloc per call)
+- [x] Softmax for the output layer (classification)
+- [x] Tests: known results on a small network with fixed weights
 
 ## Phase 3 — Supervised training (backpropagation)
 

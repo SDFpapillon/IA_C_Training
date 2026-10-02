@@ -98,7 +98,7 @@ nn_status nn_load(const char *path, nn_network **out)
         int act;
         if (fscanf(f, "%zu %zu %d", &n_in, &n_out, &act) != 3 ||
             n_in == 0 || n_out == 0 ||
-            act < (int)NN_ACT_LINEAR || act > (int)NN_ACT_RELU) {
+            act < (int)NN_ACT_LINEAR || act > (int)NN_ACT_SOFTMAX) {
             status = NN_ERR_FORMAT;
             goto done;
         }

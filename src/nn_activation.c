@@ -18,6 +18,9 @@ nn_real nn_activation_apply(nn_activation act, nn_real x)
         return tanh((double)x);
     case NN_ACT_RELU:
         return x > 0.0 ? x : 0.0;
+    case NN_ACT_SOFTMAX:
+        /* Whole-vector op, handled by nn_forward(); identity in isolation. */
+        return x;
     }
     return x;
 }
@@ -37,6 +40,9 @@ nn_real nn_activation_derivative(nn_activation act, nn_real x)
     }
     case NN_ACT_RELU:
         return x > 0.0 ? 1.0 : 0.0;
+    case NN_ACT_SOFTMAX:
+        /* Whole-vector op, handled by nn_forward(); identity in isolation. */
+        return 1.0;
     }
     return 1.0;
 }
