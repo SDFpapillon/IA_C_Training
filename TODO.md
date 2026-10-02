@@ -22,16 +22,16 @@ Suggested order: top to bottom, each phase builds on the previous one.
 
 ## Phase 1 — Network structure
 
-- [ ] Public header `include/nn.h`
-- [ ] Structures: `nn_layer` (weights, biases, activation), `nn_network` (list of layers)
-- [ ] Architecture described by an array, e.g. `{2, 8, 8, 1}` → 2 inputs, two hidden layers of 8, 1 output
-- [ ] Activation selectable per layer
-- [ ] `nn_create(...)` / `nn_free(...)` — clean allocation and release
-- [ ] Weight initialization (uniform random, Xavier/He) with a controllable seed
-- [ ] Internal portable, reproducible RNG (do not rely on `rand()`, which differs across platforms)
-- [ ] Activation functions: sigmoid, tanh, ReLU, linear (+ their derivatives)
-- [ ] Network copy / clone (needed for genetic training and hybrid seeding)
-- [ ] Save / load a network (simple binary or text format)
+- [x] Public header `include/nn.h`
+- [x] Structures: `nn_layer` (weights, biases, activation), `nn_network` (list of layers)
+- [x] Architecture described by an array, e.g. `{2, 8, 8, 1}` → 2 inputs, two hidden layers of 8, 1 output
+- [x] Activation selectable per layer
+- [x] `nn_create(...)` / `nn_free(...)` — clean allocation and release
+- [x] Weight initialization (uniform random, Xavier/He) with a controllable seed
+- [x] Internal portable, reproducible RNG (do not rely on `rand()`, which differs across platforms)
+- [x] Activation functions: sigmoid, tanh, ReLU, linear (+ their derivatives)
+- [x] Network copy / clone (needed for genetic training and hybrid seeding)
+- [x] Save / load a network (simple binary or text format)
 
 ## Phase 2 — Forward propagation
 
