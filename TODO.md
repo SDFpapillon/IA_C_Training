@@ -121,10 +121,16 @@ Viewer:
 ## Phase 7 — Tests
 
 - [x] Home-made mini test framework (`ASSERT` macros, no dependency)
-- [ ] Unit tests per module
-- [ ] Integration test: learn XOR (supervised AND genetic)
-- [ ] Integration test: two spirals classification
-- [ ] Memory leak checks (Valgrind on Linux / ASan)
+- [x] Unit tests per module — every `src/*.c` has a matching `tests/test_*.c`
+      (`nn_fitness_log.c` is covered inside `test_history.c`, alongside `nn_history.c`)
+- [x] Integration test: learn XOR (supervised AND genetic) — supervised in `test_train.c`
+      (already existed), genetic added in `tests/test_integration.c`
+- [x] Integration test: two spirals classification — `tests/test_integration.c`, a small
+      one-turn/30-points-per-class version so it trains in ~1s and stays reliable across seeds
+      (empirically 93-98% accuracy across seeds 1-5; asserts >= 0.9)
+- [x] Memory leak checks (Valgrind on Linux / ASan) — ASan/UBSan already run after every phase;
+      this pass additionally ran `valgrind --leak-check=full --errors-for-leak-kinds=all` across
+      all 19 test binaries and the example programs: zero leaks, zero errors
 
 ## Phase 8 — Windows portability
 
