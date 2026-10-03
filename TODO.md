@@ -42,14 +42,14 @@ Suggested order: top to bottom, each phase builds on the previous one.
 
 ## Phase 3 — Supervised training (backpropagation)
 
-- [ ] `nn_dataset` structure (inputs + expected outputs) and loading (simple CSV)
-- [ ] Loss functions: MSE, cross-entropy
-- [ ] Gradient backpropagation
-- [ ] Gradient descent: SGD, mini-batch
-- [ ] Hyperparameters in a params struct: learning rate, epochs, batch size
-- [ ] Shuffle the dataset between epochs
-- [ ] Gradient check via finite differences (test)
-- [ ] API: `nn_train_supervised(net, dataset, &params)`
+- [x] `nn_dataset` structure (inputs + expected outputs) and loading (simple CSV)
+- [x] Loss functions: MSE, cross-entropy
+- [x] Gradient backpropagation
+- [x] Gradient descent: SGD, mini-batch
+- [x] Hyperparameters in a params struct: learning rate, epochs, batch size
+- [x] Shuffle the dataset between epochs
+- [x] Gradient check via finite differences (test)
+- [x] API: `nn_train_supervised(net, dataset, &params)`
 - [ ] Optional: momentum, Adam
 
 ## Phase 4 — Genetic algorithm training

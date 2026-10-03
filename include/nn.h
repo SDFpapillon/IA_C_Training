@@ -182,6 +182,123 @@ void nn_forward_buffer_free(nn_forward_buffer *buf);
 nn_status nn_forward(const nn_network *net, nn_forward_buffer *buf,
                       const nn_real *input, nn_real *output);
 
+/* --------------------------------------------------------------------- */
+/* Dataset                                                                */
+/* --------------------------------------------------------------------- */
+
+/* A labeled dataset: n_samples pairs of (input, target) vectors. */
+typedef struct nn_dataset {
+    size_t n_samples;
+    size_t n_inputs;
+    size_t n_outputs;
+    nn_real *inputs;  /* n_samples * n_inputs,  row-major: inputs[s * n_inputs + i] */
+    nn_real *targets; /* n_samples * n_outputs, row-major: targets[s * n_outputs + o] */
+} nn_dataset;
+
+/* Allocate an uninitialized dataset of the given shape. */
+nn_status nn_dataset_create(size_t n_samples, size_t n_inputs, size_t n_outputs, nn_dataset **out);
+
+/* Release a dataset. nn_dataset_free(NULL) is a no-op. */
+void nn_dataset_free(nn_dataset *ds);
+
+/*
+ * Load a dataset from a CSV file: one sample per line, n_inputs values
+ * followed by n_outputs values, comma-separated. Blank lines are skipped.
+ */
+nn_status nn_dataset_load_csv(const char *path, size_t n_inputs, size_t n_outputs, nn_dataset **out);
+
+/* --------------------------------------------------------------------- */
+/* Loss                                                                   */
+/* --------------------------------------------------------------------- */
+
+/*
+ * NN_LOSS_MSE:           mean squared error; pairs with any output
+ *                        activation except NN_ACT_SOFTMAX.
+ * NN_LOSS_CROSS_ENTROPY: categorical cross-entropy for one-hot targets;
+ *                        requires an NN_ACT_SOFTMAX output layer.
+ */
+typedef enum nn_loss {
+    NN_LOSS_MSE = 0,
+    NN_LOSS_CROSS_ENTROPY
+} nn_loss;
+
+/* Loss between a network output and its target, both of length n. */
+nn_real nn_loss_value(nn_loss loss, const nn_real *output, const nn_real *target, size_t n);
+
+/* --------------------------------------------------------------------- */
+/* Backpropagation                                                       */
+/* --------------------------------------------------------------------- */
+
+/*
+ * Gradient of the loss w.r.t. every weight and bias, one array per layer.
+ * n_inputs/n_outputs are captured from the network at creation time so the
+ * gradient is self-describing; they must stay in sync with the network
+ * passed to nn_gradient_apply().
+ */
+typedef struct nn_gradient {
+    size_t n_layers;
+    size_t *n_inputs;    /* n_inputs[l]  == net->layers[l].n_inputs  at creation */
+    size_t *n_outputs;   /* n_outputs[l] == net->layers[l].n_outputs at creation */
+    nn_real **dweights;  /* dweights[l] has length n_inputs[l] * n_outputs[l] */
+    nn_real **dbiases;   /* dbiases[l]  has length n_outputs[l] */
+} nn_gradient;
+
+nn_status nn_gradient_create(const nn_network *net, nn_gradient **out);
+void nn_gradient_free(nn_gradient *grad);
+
+/* Reset all accumulated gradients to 0, e.g. before a new mini-batch. */
+void nn_gradient_zero(nn_gradient *grad);
+
+/*
+ * net->layers[l].weights[w] -= learning_rate * grad->dweights[l][w] / n_samples
+ * (and similarly for biases). n_samples is normally the number of examples
+ * accumulated into grad since the last nn_gradient_zero().
+ */
+void nn_gradient_apply(nn_network *net, const nn_gradient *grad, nn_real learning_rate, size_t n_samples);
+
+/* Reusable scratch space for nn_backprop(): pre/post-activations and deltas, one array per layer. */
+typedef struct nn_backprop_buffer {
+    size_t n_layers;
+    nn_real **z;     /* pre-activation sums,  per layer, length n_outputs */
+    nn_real **a;     /* post-activation values, per layer, length n_outputs */
+    nn_real **delta; /* dL/dz scratch, per layer, length n_outputs */
+} nn_backprop_buffer;
+
+nn_status nn_backprop_buffer_create(const nn_network *net, nn_backprop_buffer **out);
+void nn_backprop_buffer_free(nn_backprop_buffer *buf);
+
+/*
+ * Run a forward + backward pass for one (input, target) example and ADD
+ * its gradient contribution into grad (call nn_gradient_zero() first to
+ * start a fresh accumulation, e.g. once per mini-batch).
+ *
+ * loss must be compatible with the network's output activation, see
+ * nn_loss above; an incompatible pairing returns NN_ERR_INVALID_ARG.
+ */
+nn_status nn_backprop(const nn_network *net, nn_backprop_buffer *buf,
+                       const nn_real *input, const nn_real *target,
+                       nn_loss loss, nn_gradient *grad);
+
+/* --------------------------------------------------------------------- */
+/* Supervised training                                                    */
+/* --------------------------------------------------------------------- */
+
+typedef struct nn_train_params {
+    nn_real learning_rate;
+    size_t epochs;
+    size_t batch_size;    /* 0 means "the whole dataset" (batch gradient descent) */
+    nn_loss loss;
+    uint64_t shuffle_seed; /* reproducible dataset shuffling between epochs */
+} nn_train_params;
+
+/*
+ * Train net on dataset via mini-batch gradient descent (SGD when
+ * batch_size == 1). dataset's dimensions must match net's input/output
+ * sizes. The dataset order is reshuffled at the start of every epoch.
+ */
+nn_status nn_train_supervised(nn_network *net, const nn_dataset *dataset,
+                               const nn_train_params *params);
+
 #ifdef __cplusplus
 }
 #endif

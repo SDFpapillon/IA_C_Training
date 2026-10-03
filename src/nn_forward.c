@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "nn.h"
+#include "nn_internal.h"
 
 nn_status nn_forward_buffer_create(const nn_network *net, nn_forward_buffer **out)
 {
@@ -45,7 +46,7 @@ void nn_forward_buffer_free(nn_forward_buffer *buf)
     free(buf);
 }
 
-static void nn_softmax_inplace(nn_real *values, size_t n)
+void nn_softmax_inplace(nn_real *values, size_t n)
 {
     nn_real max_val = values[0];
     for (size_t i = 1; i < n; i++) {
