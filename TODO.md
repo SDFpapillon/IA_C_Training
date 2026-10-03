@@ -54,17 +54,17 @@ Suggested order: top to bottom, each phase builds on the previous one.
 
 ## Phase 4 — Genetic algorithm training
 
-- [ ] Genome ↔ network weights mapping (flatten / rebuild)
-- [ ] Population: creation, release
-- [ ] Population seeding from an existing network (clone + mutate) — needed for hybrid training
-- [ ] User-provided fitness function (callback `float (*fitness)(nn_network *, void *ctx)`)
-- [ ] Selection: tournament, roulette
-- [ ] Crossover: uniform, one-point
-- [ ] Mutation: Gaussian noise, configurable rate
-- [ ] Elitism (keep the N best)
-- [ ] Generation loop + stopping criteria
-- [ ] API: `nn_train_genetic(population, fitness_cb, ctx, &params)`
-- [ ] Optional `pre_eval_hook` in the params: called on each individual before evaluation (enables memetic training)
+- [x] Genome ↔ network weights mapping (flatten / rebuild)
+- [x] Population: creation, release
+- [x] Population seeding from an existing network (clone + mutate) — needed for hybrid training
+- [x] User-provided fitness function (callback `nn_real (*fitness)(const nn_network *, void *ctx)`)
+- [x] Selection: tournament, roulette
+- [x] Crossover: uniform, one-point
+- [x] Mutation: Gaussian noise, configurable rate
+- [x] Elitism (keep the N best)
+- [x] Generation loop + stopping criteria
+- [x] API: `nn_train_genetic(population, fitness_cb, ctx, &params)`
+- [x] Optional `pre_eval_hook` in the params: called on each individual before evaluation (enables memetic training)
 
 ## Phase 5 — Hybrid training (supervised + genetic)
 

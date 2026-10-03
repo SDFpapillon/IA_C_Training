@@ -299,6 +299,107 @@ typedef struct nn_train_params {
 nn_status nn_train_supervised(nn_network *net, const nn_dataset *dataset,
                                const nn_train_params *params);
 
+/* --------------------------------------------------------------------- */
+/* Genetic algorithm training                                            */
+/* --------------------------------------------------------------------- */
+
+/* Total number of weights + biases in net: the length of its genome. */
+size_t nn_genome_size(const nn_network *net);
+
+/* Flatten net's weights/biases into genome (nn_genome_size(net) values). */
+void nn_genome_flatten(const nn_network *net, nn_real *genome);
+
+/* Write genome (nn_genome_size(net) values) back into net's weights/biases. */
+void nn_genome_unflatten(nn_network *net, const nn_real *genome);
+
+/* A fixed-size collection of networks that all share the same architecture. */
+typedef struct nn_population {
+    size_t size;
+    size_t genome_length;
+    nn_network **networks;
+    nn_real *fitness; /* fitness[i] from the most recently evaluated generation */
+} nn_population;
+
+/*
+ * Create a population of pop_size independently, randomly initialized
+ * networks with the given architecture (see nn_create()).
+ */
+nn_status nn_population_create_random(const size_t *layer_sizes, size_t n_layer_sizes,
+                                       const nn_activation *activations, size_t n_activations,
+                                       nn_init init, size_t pop_size, uint64_t seed,
+                                       nn_population **out);
+
+/*
+ * Create a population by cloning seed_net pop_size times: individual 0 is
+ * an exact, unmutated copy; individuals 1..pop_size-1 are mutated copies
+ * (see nn_mutate()). Useful to seed genetic training from a
+ * supervised-trained network (hybrid training).
+ */
+nn_status nn_population_create_seeded(const nn_network *seed_net, size_t pop_size,
+                                       nn_real mutation_rate, nn_real mutation_stddev,
+                                       uint64_t seed, nn_population **out);
+
+/* Release a population. nn_population_free(NULL) is a no-op. */
+void nn_population_free(nn_population *pop);
+
+/* A network's fitness: higher is better. */
+typedef nn_real (*nn_fitness_fn)(const nn_network *net, void *ctx);
+
+/* Called on each individual before fitness evaluation; NULL to disable (enables memetic training). */
+typedef void (*nn_pre_eval_fn)(nn_network *net, void *ctx);
+
+typedef enum nn_selection {
+    NN_SELECT_TOURNAMENT = 0,
+    NN_SELECT_ROULETTE
+} nn_selection;
+
+typedef enum nn_crossover {
+    NN_CROSSOVER_UNIFORM = 0,
+    NN_CROSSOVER_ONE_POINT
+} nn_crossover;
+
+/*
+ * Pick the index of one selected individual in [0, n). Higher fitness[i]
+ * is better.
+ *   tournament_size: used by NN_SELECT_TOURNAMENT (clamped to n).
+ *   total_fitness:   used by NN_SELECT_ROULETTE; sum of fitness[0..n).
+ *                     Must be > 0 for fitness-proportionate selection;
+ *                     falls back to a uniform random pick otherwise.
+ */
+size_t nn_select(const nn_real *fitness, size_t n, nn_selection method,
+                  size_t tournament_size, nn_real total_fitness, nn_rng *rng);
+
+/* Combine two parent genomes of length n into child (also length n). */
+void nn_crossover_apply(const nn_real *parent_a, const nn_real *parent_b, nn_real *child,
+                         size_t n, nn_crossover method, nn_rng *rng);
+
+/* Add Gaussian noise (mean 0, given stddev) to each of genome's n values, independently, with probability rate. */
+void nn_mutate(nn_real *genome, size_t n, nn_real rate, nn_real stddev, nn_rng *rng);
+
+typedef struct nn_genetic_params {
+    size_t generations;
+    int has_target_fitness;      /* if nonzero, stop early once best fitness >= target_fitness */
+    nn_real target_fitness;
+    nn_selection selection;
+    size_t tournament_size;      /* only used for NN_SELECT_TOURNAMENT */
+    nn_crossover crossover;
+    nn_real mutation_rate;       /* per-gene probability of mutation, in [0, 1] */
+    nn_real mutation_stddev;     /* stddev of the Gaussian noise added on mutation */
+    size_t elitism;              /* number of best individuals carried over unchanged (<= pop->size) */
+    uint64_t seed;                /* RNG seed for selection/crossover/mutation */
+    nn_pre_eval_fn pre_eval_hook; /* optional, NULL to disable */
+    void *pre_eval_ctx;
+} nn_genetic_params;
+
+/*
+ * Evolve pop for up to params->generations generations (stopping early if
+ * has_target_fitness and the best individual reaches target_fitness). On
+ * return, pop->fitness holds each individual's fitness from the last
+ * evaluated generation.
+ */
+nn_status nn_train_genetic(nn_population *pop, nn_fitness_fn fitness, void *fitness_ctx,
+                            const nn_genetic_params *params);
+
 #ifdef __cplusplus
 }
 #endif
