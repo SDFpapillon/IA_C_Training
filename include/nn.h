@@ -225,6 +225,22 @@ typedef enum nn_loss {
 /* Loss between a network output and its target, both of length n. */
 nn_real nn_loss_value(nn_loss loss, const nn_real *output, const nn_real *target, size_t n);
 
+/*
+ * Score net on dataset: average loss (nn_dataset_loss) or fraction of
+ * correctly predicted samples (nn_dataset_accuracy, 1 for a perfect score).
+ * Accuracy treats a single output as a 0.5 threshold, and more than one
+ * output as one-hot classification (argmax(output) == argmax(target)).
+ *
+ * buf is scratch space from nn_forward_buffer_create(net, ...); output
+ * must have at least net's last layer's n_outputs elements. Both are
+ * reused across calls, never allocated here (e.g. inside a GA fitness
+ * function, called every individual of every generation).
+ */
+nn_status nn_dataset_loss(const nn_network *net, nn_forward_buffer *buf, nn_real *output,
+                           const nn_dataset *dataset, nn_loss loss, nn_real *out);
+nn_status nn_dataset_accuracy(const nn_network *net, nn_forward_buffer *buf, nn_real *output,
+                               const nn_dataset *dataset, nn_real *out);
+
 /* --------------------------------------------------------------------- */
 /* Backpropagation                                                       */
 /* --------------------------------------------------------------------- */

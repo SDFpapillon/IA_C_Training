@@ -71,14 +71,16 @@ Suggested order: top to bottom, each phase builds on the previous one.
 Goal: inject known answers (e.g. "mate in 1 is always the best move") into genetic training,
 so the population does not have to rediscover them by chance.
 
-- [ ] **Strategy 1 — Fitness bonus**: fitness = task score + bonus × correct answers on known cases.
+- [x] **Strategy 1 — Fitness bonus**: fitness = task score + bonus × correct answers on known cases.
       No library change needed; provide a helper to score a network on a dataset.
-- [ ] **Strategy 2 — Pre-train then evolve**: supervised training on known cases, then seed the
+- [x] **Strategy 2 — Pre-train then evolve**: supervised training on known cases, then seed the
       genetic population from that network.
-- [ ] **Strategy 3 — Memetic**: each individual runs a few gradient steps on known cases before
+- [x] **Strategy 3 — Memetic**: each individual runs a few gradient steps on known cases before
       evaluation, via `pre_eval_hook`.
-- [ ] Compare the three strategies against pure genetic on the same task (convergence speed, final score)
+- [x] Compare the three strategies against pure genetic on the same task (convergence speed, final score)
+      — see `examples/hybrid_training_demo.c` (a comparison tool to run and read, not a pass/fail test).
 - [ ] Validate on a small game first (tic-tac-toe, Connect 4) before anything like chess
+      — deferred to Phase 9's `examples/tictactoe_hybrid.c`, where real game logic belongs.
 
 ## Phase 6 — Visualization
 

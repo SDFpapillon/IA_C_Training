@@ -6,6 +6,86 @@
 
 #define NN_CSV_MAX_LINE 4096
 
+static nn_status nn_dataset_check_shape(const nn_network *net, const nn_dataset *dataset)
+{
+    size_t last = net->n_layers - 1;
+    if (dataset->n_inputs != net->layers[0].n_inputs ||
+        dataset->n_outputs != net->layers[last].n_outputs) {
+        return NN_ERR_SIZE_MISMATCH;
+    }
+    return NN_OK;
+}
+
+nn_status nn_dataset_loss(const nn_network *net, nn_forward_buffer *buf, nn_real *output,
+                           const nn_dataset *dataset, nn_loss loss, nn_real *out)
+{
+    if (net == NULL || buf == NULL || output == NULL || dataset == NULL || out == NULL) {
+        return NN_ERR_NULL_ARG;
+    }
+    nn_status status = nn_dataset_check_shape(net, dataset);
+    if (status != NN_OK) {
+        return status;
+    }
+
+    nn_real total = 0.0;
+    for (size_t s = 0; s < dataset->n_samples; s++) {
+        const nn_real *in = &dataset->inputs[s * dataset->n_inputs];
+        const nn_real *target = &dataset->targets[s * dataset->n_outputs];
+        status = nn_forward(net, buf, in, output);
+        if (status != NN_OK) {
+            return status;
+        }
+        total += nn_loss_value(loss, output, target, dataset->n_outputs);
+    }
+    *out = total / (nn_real)dataset->n_samples;
+    return NN_OK;
+}
+
+nn_status nn_dataset_accuracy(const nn_network *net, nn_forward_buffer *buf, nn_real *output,
+                               const nn_dataset *dataset, nn_real *out)
+{
+    if (net == NULL || buf == NULL || output == NULL || dataset == NULL || out == NULL) {
+        return NN_ERR_NULL_ARG;
+    }
+    nn_status status = nn_dataset_check_shape(net, dataset);
+    if (status != NN_OK) {
+        return status;
+    }
+
+    size_t n_out = dataset->n_outputs;
+    size_t correct = 0;
+    for (size_t s = 0; s < dataset->n_samples; s++) {
+        const nn_real *in = &dataset->inputs[s * dataset->n_inputs];
+        const nn_real *target = &dataset->targets[s * n_out];
+        status = nn_forward(net, buf, in, output);
+        if (status != NN_OK) {
+            return status;
+        }
+
+        if (n_out == 1) {
+            if ((output[0] > 0.5) == (target[0] > 0.5)) {
+                correct++;
+            }
+        } else {
+            size_t pred = 0;
+            size_t truth = 0;
+            for (size_t o = 1; o < n_out; o++) {
+                if (output[o] > output[pred]) {
+                    pred = o;
+                }
+                if (target[o] > target[truth]) {
+                    truth = o;
+                }
+            }
+            if (pred == truth) {
+                correct++;
+            }
+        }
+    }
+    *out = (nn_real)correct / (nn_real)dataset->n_samples;
+    return NN_OK;
+}
+
 nn_status nn_dataset_create(size_t n_samples, size_t n_inputs, size_t n_outputs, nn_dataset **out)
 {
     if (out == NULL) {
