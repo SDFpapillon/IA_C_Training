@@ -141,9 +141,20 @@ Viewer:
 
 ## Phase 9 — Examples and documentation
 
-- [ ] `examples/xor_supervised.c`
-- [ ] `examples/xor_genetic.c`
-- [ ] `examples/spirals.c` (with decision boundary export)
-- [ ] `examples/tictactoe_hybrid.c` (hybrid training demo)
-- [ ] Fill in the *Building* and *Usage* sections of the README
-- [ ] Document the API (comments in `nn.h`, possibly Doxygen)
+- [x] `examples/xor_supervised.c`
+- [x] `examples/xor_genetic.c`
+- [x] `examples/spirals.c` (with decision boundary export) — honest about the known limitation:
+      a plain small MLP without momentum fits the sparse training points well without necessarily
+      recovering the true spiral curve between them; that gap *is* why this benchmark is famous,
+      not a bug in the example
+- [x] `examples/tictactoe_hybrid.c` (hybrid training demo) — game logic + minimax solver live in the
+      example (library stays game-agnostic); known cases = minimax-labeled immediate-win/forced-block
+      positions; fitness = self-play record against perfect minimax play. Pure genetic happened to
+      reach perfect play (0 losses/20) while the Strategy 2 hybrid did worse in this run (10
+      losses/20) — a genuine result, not cherry-picked, consistent with Phase 5's finding that hybrid
+      strategies don't automatically win
+- [x] Fill in the *Building* and *Usage* sections of the README — Building already existed; added a
+      minimal runnable Usage snippet plus a table pointing at every example
+- [x] Document the API (comments in `nn.h`, possibly Doxygen) — audited and filled remaining gaps
+      (e.g. `nn_rng_seed` had none); kept plain comments over Doxygen, consistent with "no external
+      dependencies": the project is small enough that generated-docs tooling isn't earning its keep yet

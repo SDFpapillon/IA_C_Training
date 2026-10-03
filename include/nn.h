@@ -51,6 +51,8 @@ typedef struct nn_rng {
     uint64_t state;
 } nn_rng;
 
+/* (Re)seed rng. Call once per independent stream; the same seed always
+ * produces the same sequence from nn_rng_next_u64()/nn_rng_uniform()/etc. */
 void nn_rng_seed(nn_rng *rng, uint64_t seed);
 
 /* Next raw 64-bit value. */
@@ -145,7 +147,8 @@ void nn_free(nn_network *net);
 /* Deep copy a network (weights, biases, architecture included). */
 nn_status nn_clone(const nn_network *net, nn_network **out);
 
-/* Save a network to a text file. */
+/* Save a network to a plain-text file (architecture + weights + biases,
+ * one line of magic/counts per layer followed by its numbers). */
 nn_status nn_save(const nn_network *net, const char *path);
 
 /* Load a network previously written by nn_save(). */
@@ -325,6 +328,17 @@ nn_status nn_train_supervised(nn_network *net, const nn_dataset *dataset,
 /* --------------------------------------------------------------------- */
 /* Genetic algorithm training                                            */
 /* --------------------------------------------------------------------- */
+
+/*
+ * A network's "genome" is just its weights and biases flattened into one
+ * array (nn_genome_flatten()/nn_genome_unflatten()); a "population" is a
+ * fixed-size set of networks sharing one architecture (nn_population).
+ * nn_train_genetic() evolves a population generation by generation:
+ * evaluate fitness, optionally stop early, then build the next generation
+ * from elitism + selection + crossover + mutation on genomes. See
+ * nn_select()/nn_crossover_apply()/nn_mutate() for the building blocks,
+ * exposed individually so they're usable (and testable) on their own.
+ */
 
 /* Total number of weights + biases in net: the length of its genome. */
 size_t nn_genome_size(const nn_network *net);
