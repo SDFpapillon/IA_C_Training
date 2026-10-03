@@ -77,6 +77,13 @@ nn_status nn_train_supervised(nn_network *net, const nn_dataset *dataset,
             }
             nn_gradient_apply(net, grad, params->learning_rate, batch_end - batch_start);
         }
+
+        if (params->on_step != NULL) {
+            size_t every = params->on_step_every == 0 ? 1 : params->on_step_every;
+            if (epoch % every == 0) {
+                params->on_step(net, epoch, params->on_step_ctx);
+            }
+        }
     }
     status = NN_OK;
 

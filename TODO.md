@@ -85,19 +85,38 @@ so the population does not have to rediscover them by chance.
 ## Phase 6 — Visualization
 
 Generalizable metrics (any network):
-- [ ] Training callback every X iterations / generations (`on_step(net, iteration, ctx)`)
-- [ ] Export loss and accuracy history (CSV)
-- [ ] Genetic: export best and average fitness per generation (CSV)
+- [x] Training callback every X iterations / generations (`on_step(net, iteration, ctx)` for
+      supervised training, `on_generation(population, generation, ctx)` for genetic — the
+      population's cached fitness is what "best/average fitness" needs, a single network isn't enough)
+- [x] Export loss and accuracy history (CSV) — `nn_history_logger` + `nn_history_log_step`
+- [x] Genetic: export best and average fitness per generation (CSV) — `nn_fitness_logger` +
+      `nn_fitness_log_generation`
 
 Specific views:
-- [ ] Decision boundary map for 2-input classifiers: export prediction grid per snapshot
-- [ ] Write frames directly as PPM/BMP images (trivial formats, no dependency)
-- [ ] More than 2 inputs: 2D slice (pick 2 inputs, fix the others)
-- [ ] Regression: predicted vs expected values
+- [x] Decision boundary map for 2-input classifiers: export prediction grid per snapshot
+- [x] Write frames directly as PPM/BMP images (trivial formats, no dependency) — PPM (P6) only;
+      BMP adds nothing PPM doesn't already cover for this use case, so skipped to avoid duplicating
+      the same "write a trivial image format" work twice
+- [x] More than 2 inputs: 2D slice (pick 2 inputs, fix the others) — `nn_export_decision_boundary_ppm`
+      takes axis_x/axis_y plus a fixed-inputs vector, so the plain 2-input case is just axis_x=0, axis_y=1
+- [x] Regression: predicted vs expected values — `nn_export_predictions_csv`
 
 Viewer:
-- [ ] Separate HTML viewer (in `tools/`) reading the exported files, based on the existing
+- [x] Separate HTML viewer (in `tools/`) reading the exported files, based on the existing
       decision-boundary prototype (architecture, learning rate, frames every X iterations, playback speed)
+      — no such prototype was found in this repo; built `tools/viewer.html` from scratch instead
+      (confirmed with Loïs). Single self-contained file, no server/build step/dependency: loads the
+      history CSV, run-metadata JSON and PPM frames as local files, parses PPM/CSV in plain JS, and
+      renders a decision-boundary canvas plus a loss/accuracy chart with play/pause, speed and
+      frame-scrubbing controls. See `examples/visualize_training.c` for a ready-made export to feed it.
+- [x] **Extra, requested after the fact**: build a network and a dataset from `tools/viewer.html` itself
+      (a network-architecture editor exporting a small config format, a JSON/CSV dataset editor exporting
+      a dataset.csv), train with `examples/train_from_files.c` on the command line (the browser can't run
+      C), then load the resulting trained network back into the viewer for a *live* decision-boundary
+      preview — a JS re-implementation of `nn_forward()`, checked to match the C output bit-for-bit.
+      Deliberately not a "train" button in the browser: that needs either duplicating the training
+      engine in JS or compiling the library to WebAssembly, both bigger asks than "edit config, run
+      offline, inspect results" (see conversation).
 
 ## Phase 7 — Tests
 

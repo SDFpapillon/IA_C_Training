@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>IA_C_Training — Training Viewer</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #1b1d22;
+    --panel: #24262c;
+    --border: #3a3d45;
+    --text: #e4e4e6;
+    --muted: #9a9ca3;
+    --accent: #5fb0ff;
+    --accent2: #ffb45f;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 20px;
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.4 -apple-system, Segoe UI, Helvetica, Arial, sans-serif;
+  }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 0 0 10px; }
+  .sub { color: var(--muted); margin: 0 0 18px; font-size: 13px; }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 16px;
+  }
+  .inputs { display: flex; flex-wrap: wrap; gap: 18px; }
+  .inputs label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+  input[type=file] { color: var(--text); font-size: 12px; max-width: 260px; }
+  .layout { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; }
+  .frame-panel { flex: 0 0 auto; }
+  .info-panel { flex: 1 1 320px; min-width: 300px; }
+  #frameCanvas {
+    display: block;
+    width: 320px;
+    height: 320px;
+    background: #000;
+    image-rendering: pixelated;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+  }
+  .controls { display: flex; align-items: center; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+  .controls input[type=range] { vertical-align: middle; }
+  button {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 6px 12px;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  button:hover { border-color: var(--accent); }
+  #frameLabel, #speedLabel { color: var(--muted); font-size: 12px; min-width: 7em; }
+  dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 13px; }
+  dt { color: var(--muted); }
+  dd { margin: 0; }
+  .chart-canvas { background: #14151a; border: 1px solid var(--border); border-radius: 4px; width: 100%; height: 160px; }
+  .legend { display: flex; gap: 16px; margin-top: 6px; font-size: 12px; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+
+  .build-layout { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; }
+  .build-panel { flex: 1 1 340px; min-width: 300px; }
+  select, input[type=number], input[type=text] {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 5px 8px;
+    font-size: 13px;
+  }
+  .layer-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .layer-role { width: 64px; font-size: 12px; color: var(--muted); flex: 0 0 auto; }
+  .layer-size-input { width: 64px; }
+  .layer-row select { flex: 0 0 auto; }
+  .layer-row button { padding: 3px 9px; font-size: 12px; }
+  code, .mono { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; }
+  pre.cmd {
+    background: #14151a;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 12px;
+    overflow-x: auto;
+    margin: 8px 0 0;
+  }
+  table.preview { border-collapse: collapse; width: 100%; font-size: 12px; margin-top: 8px; }
+  table.preview th, table.preview td { border: 1px solid var(--border); padding: 3px 6px; text-align: right; }
+  table.preview th { color: var(--muted); font-weight: 500; }
+  .field-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  .field-row label { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  .note { color: var(--muted); font-size: 12px; margin-top: 6px; }
+</style>
+</head>
+<body>
+
+<h1>IA_C_Training — Training Viewer</h1>
+<p class="sub">
+  Build a network and a dataset below, train them with the library on the command line, then load the
+  results back in to inspect them. No server, no build step for this page: it only reads/writes plain
+  files. See <code>examples/train_from_files.c</code> and <code>examples/visualize_training.c</code>.
+</p>
+
+<div class="build-layout">
+  <div class="panel build-panel">
+    <h2>1. Build a network</h2>
+    <div id="layerEditor"></div>
+    <div class="field-row">
+      <button id="addLayerBtn" type="button">+ Add hidden layer</button>
+    </div>
+    <div class="field-row">
+      <label>Init
+        <select id="initSelect">
+          <option value="xavier">xavier</option>
+          <option value="he">he</option>
+          <option value="uniform">uniform</option>
+        </select>
+      </label>
+      <label>Seed <input type="number" id="seedInput" value="1" min="0" style="width:80px"></label>
+    </div>
+    <div class="field-row">
+      <button id="downloadConfigBtn" type="button">Download architecture.cfg</button>
+    </div>
+  </div>
+
+  <div class="panel build-panel">
+    <h2>2. Build a dataset</h2>
+    <div class="field-row" style="margin-top:0;">
+      <label>Inputs <input type="number" id="datasetNInputs" min="1" value="2" style="width:56px"></label>
+      <label>Outputs <input type="number" id="datasetNOutputs" min="1" value="1" style="width:56px"></label>
+    </div>
+    <p class="note">
+      Only used to split plain CSV columns (JSON declares its own dimensions, and overrides these on load).
+    </p>
+    <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:8px;">
+      JSON ({"n_inputs":2,"n_outputs":1,"samples":[{"input":[0,0],"target":[0]}, ...]}) or CSV
+      (inputs then targets, comma-separated, no header)
+      <input type="file" id="datasetInput" accept=".json,.csv" style="display:block;margin-top:6px;">
+    </label>
+    <div id="datasetPreview" class="note">No dataset loaded.</div>
+    <div class="field-row">
+      <button id="downloadDatasetBtn" type="button" disabled>Download dataset.csv</button>
+    </div>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>3. Train (command line)</h2>
+  <p class="note">
+    Build the library once (<code>make examples</code>), then run the trainer on the two files downloaded
+    above — it writes a trained network and a loss/accuracy history:
+  </p>
+  <pre class="cmd" id="trainCmd">./build/release/examples/train_from_files architecture.cfg dataset.csv trained_network.txt training_history.csv</pre>
+</div>
+
+<div class="panel inputs">
+  <label>Trained network (from <code>nn_save</code> / train_from_files)
+    <input type="file" id="networkInput" accept=".txt">
+  </label>
+  <label>History CSV (iteration,loss,accuracy)
+    <input type="file" id="historyInput" accept=".csv">
+  </label>
+  <label>Run metadata JSON (optional)
+    <input type="file" id="metaInput" accept=".json">
+  </label>
+  <label>Decision boundary frames (.ppm, select all)
+    <input type="file" id="framesInput" accept=".ppm" multiple>
+  </label>
+</div>
+
+<h2 style="margin:4px 0 10px;">4. Inspect results</h2>
+<div class="layout">
+  <div class="panel frame-panel">
+    <h2>Decision boundary</h2>
+    <canvas id="frameCanvas"></canvas>
+    <div class="controls">
+      <button id="playBtn" title="Play/pause">&#9654;</button>
+      <button id="prevBtn" title="Previous frame">&#9664;&#9664;</button>
+      <button id="nextBtn" title="Next frame">&#9654;&#9654;</button>
+      <input type="range" id="frameSlider" min="0" max="0" value="0" step="1" style="width:160px">
+      <span id="frameLabel">no frames loaded</span>
+    </div>
+    <div class="controls">
+      <label for="speedSlider" style="color:var(--muted);font-size:12px;">Playback speed</label>
+      <input type="range" id="speedSlider" min="0.25" max="4" step="0.25" value="1">
+      <span id="speedLabel">1x</span>
+    </div>
+  </div>
+
+  <div class="info-panel">
+    <div class="panel">
+      <h2>Run info</h2>
+      <dl id="metaInfo">
+        <dt>architecture</dt><dd>—</dd>
+        <dt>learning rate</dt><dd>—</dd>
+        <dt>epochs</dt><dd>—</dd>
+        <dt>frame stride</dt><dd>—</dd>
+      </dl>
+    </div>
+    <div class="panel">
+      <h2>Network</h2>
+      <canvas id="networkCanvas" class="chart-canvas" width="320" height="160"></canvas>
+      <div class="legend">
+        <span><i class="dot" style="background:var(--accent)"></i>input</span>
+        <span><i class="dot" style="background:#9a9ca3"></i>hidden</span>
+        <span><i class="dot" style="background:var(--accent2)"></i>output</span>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Loss / accuracy</h2>
+      <canvas id="chartCanvas" class="chart-canvas" width="320" height="180"></canvas>
+      <div class="legend">
+        <span><i class="dot" style="background:var(--accent)"></i>loss</span>
+        <span><i class="dot" style="background:var(--accent2)"></i>accuracy</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="panel" id="livePreviewPanel" style="display:none;">
+  <h2>Live decision boundary (loaded trained network)</h2>
+  <p class="note">
+    Computed entirely in this page with a JS re-implementation of <code>nn_forward()</code> — no PPM
+    file needed. Pick which 2 inputs to sweep; any other input is held at the slider's value.
+  </p>
+  <div class="field-row">
+    <label>Axis X <select id="liveAxisX"></select></label>
+    <label>Axis Y <select id="liveAxisY"></select></label>
+    <label>X range <input type="number" id="liveXMin" value="-1" step="0.5" style="width:60px"> to
+      <input type="number" id="liveXMax" value="1" step="0.5" style="width:60px"></label>
+    <label>Y range <input type="number" id="liveYMin" value="-1" step="0.5" style="width:60px"> to
+      <input type="number" id="liveYMax" value="1" step="0.5" style="width:60px"></label>
+  </div>
+  <div id="liveFixedInputs" class="field-row"></div>
+  <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;margin-top:10px;">
+    <canvas id="liveCanvas" width="128" height="128"
+            style="width:256px;height:256px;background:#000;image-rendering:pixelated;border:1px solid var(--border);border-radius:4px;"></canvas>
+    <div class="note" id="liveInfo"></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* ---------- state ---------- */
+let historyRows = [];    // [{iteration, loss, accuracy}, ...] (named to avoid shadowing window.history)
+let frames = [];         // [{iteration, name, ppm: {width,height,pixels}}, ...]
+let meta = null;
+let currentFrame = 0;
+let playing = false;
+let playTimer = null;
+let currentArchitecture = [2, 8, 1]; // drives the network diagram; kept in sync with whichever of the
+                                      // editor / loaded meta.json / loaded trained network changed last
+
+const frameCanvas = document.getElementById("frameCanvas");
+const frameCtx = frameCanvas.getContext("2d");
+const chartCanvas = document.getElementById("chartCanvas");
+const chartCtx = chartCanvas.getContext("2d");
+const networkCanvas = document.getElementById("networkCanvas");
+const networkCtx = networkCanvas.getContext("2d");
+const frameSlider = document.getElementById("frameSlider");
+const frameLabel = document.getElementById("frameLabel");
+const speedSlider = document.getElementById("speedSlider");
+const speedLabel = document.getElementById("speedLabel");
+const playBtn = document.getElementById("playBtn");
+const metaInfo = document.getElementById("metaInfo");
+
+/* ---------- PPM (P6) parsing ---------- */
+function parsePPM(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let pos = 0;
+  function isSpace(c) { return c === 32 || c === 9 || c === 10 || c === 13; }
+  function readToken() {
+    while (pos < bytes.length) {
+      if (bytes[pos] === 35) { // '#' comment to end of line
+        while (pos < bytes.length && bytes[pos] !== 10) pos++;
+      } else if (isSpace(bytes[pos])) {
+        pos++;
+      } else break;
+    }
+    const start = pos;
+    while (pos < bytes.length && !isSpace(bytes[pos])) pos++;
+    let s = "";
+    for (let i = start; i < pos; i++) s += String.fromCharCode(bytes[i]);
+    return s;
+  }
+  const magic = readToken();
+  if (magic !== "P6") throw new Error("not a binary PPM (P6) file");
+  const width = parseInt(readToken(), 10);
+  const height = parseInt(readToken(), 10);
+  readToken(); // maxval, assumed 255 (matches nn_export_decision_boundary_ppm)
+  pos++; // single whitespace byte separating header from pixel data
+  const pixels = bytes.slice(pos, pos + width * height * 3);
+  return { width, height, pixels };
+}
+
+function iterationFromFilename(name) {
+  const m = name.match(/(\d+)(?=\.ppm$)/i);
+  return m ? parseInt(m[0], 10) : 0;
+}
+
+/* ---------- trained network (NNTXT1) parsing + forward pass ----------
+ * Mirrors nn_io.c's writer and nn_forward.c's math exactly, so a network
+ * saved by nn_save() can be previewed here without running any C code. */
+const ACTIVATION_NAMES = ["linear", "sigmoid", "tanh", "relu", "softmax"];
+
+function parseTrainedNetwork(text) {
+  const tokens = text.trim().split(/\s+/);
+  let pos = 0;
+  const next = () => tokens[pos++];
+
+  if (next() !== "NNTXT1") throw new Error("not an NNTXT1 network file");
+  const nLayers = parseInt(next(), 10);
+  const layers = [];
+  for (let l = 0; l < nLayers; l++) {
+    const nIn = parseInt(next(), 10);
+    const nOut = parseInt(next(), 10);
+    const activation = parseInt(next(), 10);
+    const weights = new Float64Array(nIn * nOut);
+    for (let i = 0; i < weights.length; i++) weights[i] = parseFloat(next());
+    const biases = new Float64Array(nOut);
+    for (let i = 0; i < biases.length; i++) biases[i] = parseFloat(next());
+    layers.push({ n_inputs: nIn, n_outputs: nOut, activation, weights, biases });
+  }
+  return { n_layers: nLayers, layers, n_inputs: layers[0].n_inputs, n_outputs: layers[nLayers - 1].n_outputs };
+}
+
+function applyActivation(act, x) {
+  switch (act) {
+    case 0: return x;                        // linear
+    case 1: return 1 / (1 + Math.exp(-x));    // sigmoid
+    case 2: return Math.tanh(x);              // tanh
+    case 3: return x > 0 ? x : 0;             // relu
+    case 4: return x;                         // softmax: handled on the whole vector below
+    default: return x;
+  }
+}
+
+function softmaxInplace(values) {
+  let max = values[0];
+  for (let i = 1; i < values.length; i++) if (values[i] > max) max = values[i];
+  let sum = 0;
+  for (let i = 0; i < values.length; i++) {
+    values[i] = Math.exp(values[i] - max);
+    sum += values[i];
+  }
+  for (let i = 0; i < values.length; i++) values[i] /= sum;
+}
+
+function nnForward(network, input) {
+  let layerInput = input;
+  for (const layer of network.layers) {
+    const output = new Float64Array(layer.n_outputs);
+    for (let o = 0; o < layer.n_outputs; o++) {
+      let sum = layer.biases[o];
+      const base = o * layer.n_inputs;
+      for (let i = 0; i < layer.n_inputs; i++) sum += layer.weights[base + i] * layerInput[i];
+      output[o] = layer.activation === 4 ? sum : applyActivation(layer.activation, sum);
+    }
+    if (layer.activation === 4) softmaxInplace(output);
+    layerInput = output;
+  }
+  return layerInput;
+}
+
+/* ---------- network architecture editor ---------- */
+let editorLayers = [
+  { size: 2 },
+  { size: 8, activation: "tanh" },
+  { size: 1, activation: "sigmoid" },
+];
+
+const layerEditorEl = document.getElementById("layerEditor");
+
+function renderLayerEditor() {
+  layerEditorEl.innerHTML = "";
+  editorLayers.forEach((layer, idx) => {
+    const row = document.createElement("div");
+    row.className = "layer-row";
+
+    const role = idx === 0 ? "input" : idx === editorLayers.length - 1 ? "output" : "hidden " + idx;
+    const roleLabel = document.createElement("span");
+    roleLabel.className = "layer-role";
+    roleLabel.textContent = role;
+    row.appendChild(roleLabel);
+
+    const sizeInput = document.createElement("input");
+    sizeInput.type = "number";
+    sizeInput.min = "1";
+    sizeInput.value = String(layer.size);
+    sizeInput.className = "layer-size-input";
+    sizeInput.addEventListener("input", () => {
+      layer.size = Math.max(1, parseInt(sizeInput.value, 10) || 1);
+      updateArchFromEditor();
+    });
+    row.appendChild(sizeInput);
+
+    if (idx > 0) {
+      const actSelect = document.createElement("select");
+      ACTIVATION_NAMES.forEach((name) => {
+        const opt = document.createElement("option");
+        opt.value = name;
+        opt.textContent = name;
+        if (layer.activation === name) opt.selected = true;
+        actSelect.appendChild(opt);
+      });
+      actSelect.addEventListener("change", () => {
+        layer.activation = actSelect.value;
+      });
+      row.appendChild(actSelect);
+    }
+
+    if (editorLayers.length > 2) {
+      const removeBtn = document.createElement("button");
+      removeBtn.type = "button";
+      removeBtn.textContent = "✕";
+      removeBtn.title = "Remove layer";
+      removeBtn.addEventListener("click", () => {
+        editorLayers.splice(idx, 1);
+        renderLayerEditor();
+        updateArchFromEditor();
+      });
+      row.appendChild(removeBtn);
+    }
+
+    layerEditorEl.appendChild(row);
+  });
+}
+
+function updateArchFromEditor() {
+  currentArchitecture = editorLayers.map((l) => l.size);
+  drawNetworkDiagram();
+}
+
+document.getElementById("addLayerBtn").addEventListener("click", () => {
+  editorLayers.splice(editorLayers.length - 1, 0, { size: 4, activation: "tanh" });
+  renderLayerEditor();
+  updateArchFromEditor();
+});
+
+function downloadText(filename, text) {
+  const blob = new Blob([text], { type: "text/plain" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+document.getElementById("downloadConfigBtn").addEventListener("click", () => {
+  const sizes = editorLayers.map((l) => l.size);
+  const acts = editorLayers.slice(1).map((l) => l.activation);
+  const init = document.getElementById("initSelect").value;
+  const seed = document.getElementById("seedInput").value || "1";
+  const text = "NNARCH1\n" + sizes.length + "\n" + sizes.join(" ") + "\n" + acts.join(" ") + "\n" +
+               init + "\n" + seed + "\n";
+  downloadText("architecture.cfg", text);
+});
+
+renderLayerEditor();
+updateArchFromEditor();
+
+/* ---------- dataset editor ---------- */
+let currentDataset = null; // { n_inputs, n_outputs, rows: [{input:[...], target:[...]}, ...] }
+
+const datasetPreviewEl = document.getElementById("datasetPreview");
+const downloadDatasetBtn = document.getElementById("downloadDatasetBtn");
+const datasetNInputs = document.getElementById("datasetNInputs");
+const datasetNOutputs = document.getElementById("datasetNOutputs");
+
+function renderDatasetPreview() {
+  if (!currentDataset || currentDataset.rows.length === 0) {
+    datasetPreviewEl.textContent = "No dataset loaded.";
+    downloadDatasetBtn.disabled = true;
+    return;
+  }
+  const { n_inputs, n_outputs, rows } = currentDataset;
+  let html = "<div>" + rows.length + " samples, " + n_inputs + " input(s), " + n_outputs + " output(s)</div>";
+  html += '<table class="preview"><thead><tr>';
+  for (let i = 0; i < n_inputs; i++) html += "<th>in" + i + "</th>";
+  for (let o = 0; o < n_outputs; o++) html += "<th>out" + o + "</th>";
+  html += "</tr></thead><tbody>";
+  rows.slice(0, 5).forEach((r) => {
+    html += "<tr>" + r.input.map((v) => "<td>" + v + "</td>").join("") +
+                       r.target.map((v) => "<td>" + v + "</td>").join("") + "</tr>";
+  });
+  html += "</tbody></table>";
+  if (rows.length > 5) html += '<div class="note">… and ' + (rows.length - 5) + " more</div>";
+  datasetPreviewEl.innerHTML = html;
+  downloadDatasetBtn.disabled = false;
+}
+
+function parseDatasetJSON(text) {
+  const obj = JSON.parse(text);
+  if (!Array.isArray(obj.samples) || obj.samples.length === 0) {
+    throw new Error("missing or empty 'samples' array");
+  }
+  const n_inputs = obj.n_inputs ?? obj.samples[0].input.length;
+  const n_outputs = obj.n_outputs ?? obj.samples[0].target.length;
+  const rows = obj.samples.map((s, i) => {
+    if (!Array.isArray(s.input) || s.input.length !== n_inputs) {
+      throw new Error("sample " + i + ": input must have " + n_inputs + " value(s)");
+    }
+    if (!Array.isArray(s.target) || s.target.length !== n_outputs) {
+      throw new Error("sample " + i + ": target must have " + n_outputs + " value(s)");
+    }
+    return { input: s.input.slice(), target: s.target.slice() };
+  });
+  return { n_inputs, n_outputs, rows };
+}
+
+function parseDatasetCSV(text, n_inputs, n_outputs) {
+  const lines = text.trim().split(/\r?\n/).filter((l) => l.trim().length > 0);
+  if (lines.length === 0) throw new Error("empty file");
+  const rows = lines.map((line, i) => {
+    const parts = line.split(",").map((s) => parseFloat(s.trim()));
+    if (parts.length !== n_inputs + n_outputs || parts.some(Number.isNaN)) {
+      throw new Error("line " + (i + 1) + ": expected " + (n_inputs + n_outputs) + " numbers, got \"" + line + "\"");
+    }
+    return { input: parts.slice(0, n_inputs), target: parts.slice(n_inputs) };
+  });
+  return { n_inputs, n_outputs, rows };
+}
+
+document.getElementById("datasetInput").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const text = await file.text();
+  try {
+    let parsed;
+    if (file.name.toLowerCase().endsWith(".json")) {
+      parsed = parseDatasetJSON(text);
+      datasetNInputs.value = String(parsed.n_inputs);
+      datasetNOutputs.value = String(parsed.n_outputs);
+    } else {
+      const nIn = parseInt(datasetNInputs.value, 10);
+      const nOut = parseInt(datasetNOutputs.value, 10);
+      parsed = parseDatasetCSV(text, nIn, nOut);
+    }
+    currentDataset = parsed;
+    renderDatasetPreview();
+  } catch (err) {
+    currentDataset = null;
+    datasetPreviewEl.textContent = "Error: " + err.message;
+    downloadDatasetBtn.disabled = true;
+  }
+});
+
+downloadDatasetBtn.addEventListener("click", () => {
+  if (!currentDataset) return;
+  const lines = currentDataset.rows.map((r) => r.input.concat(r.target).join(","));
+  downloadText("dataset.csv", lines.join("\n") + "\n");
+});
+
+/* ---------- loading ---------- */
+document.getElementById("historyInput").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const text = await file.text();
+  const lines = text.trim().split(/\r?\n/).slice(1); // drop header
+  historyRows = lines.filter(Boolean).map((line) => {
+    const [iteration, loss, accuracy] = line.split(",");
+    return { iteration: parseInt(iteration, 10), loss: parseFloat(loss), accuracy: parseFloat(accuracy) };
+  });
+  drawChart();
+});
+
+document.getElementById("metaInput").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  try {
+    meta = JSON.parse(await file.text());
+  } catch (err) {
+    meta = null;
+    alert("Could not parse metadata JSON: " + err.message);
+  }
+  renderMeta();
+});
+
+document.getElementById("framesInput").addEventListener("change", async (e) => {
+  const files = Array.from(e.target.files).sort((a, b) => iterationFromFilename(a.name) - iterationFromFilename(b.name));
+  frames = await Promise.all(files.map(async (f) => ({
+    name: f.name,
+    iteration: iterationFromFilename(f.name),
+    ppm: parsePPM(await f.arrayBuffer()),
+  })));
+  currentFrame = 0;
+  frameSlider.max = String(Math.max(frames.length - 1, 0));
+  frameSlider.value = "0";
+  renderFrame();
+  drawChart();
+});
+
+/* ---------- loaded trained network: live decision-boundary preview ----------
+ * Same palette as nn_export_decision_boundary_ppm's NN_PALETTE, so a live
+ * preview and a C-exported PPM of the same network/axes look the same. */
+const LIVE_PALETTE = [
+  [230, 25, 75], [60, 180, 75], [255, 225, 25], [0, 130, 200],
+  [245, 130, 48], [145, 30, 180], [70, 240, 240], [240, 50, 230],
+];
+const LIVE_RESOLUTION = 64;
+
+let loadedNetwork = null;
+
+const livePreviewPanel = document.getElementById("livePreviewPanel");
+const liveAxisX = document.getElementById("liveAxisX");
+const liveAxisY = document.getElementById("liveAxisY");
+const liveXMin = document.getElementById("liveXMin");
+const liveXMax = document.getElementById("liveXMax");
+const liveYMin = document.getElementById("liveYMin");
+const liveYMax = document.getElementById("liveYMax");
+const liveFixedInputsEl = document.getElementById("liveFixedInputs");
+const liveCanvas = document.getElementById("liveCanvas");
+const liveCtx = liveCanvas.getContext("2d");
+const liveInfo = document.getElementById("liveInfo");
+
+function setupLivePreview(network) {
+  loadedNetwork = network;
+  livePreviewPanel.style.display = "block";
+
+  const nIn = network.n_inputs;
+  liveAxisX.innerHTML = "";
+  liveAxisY.innerHTML = "";
+  for (let i = 0; i < nIn; i++) {
+    const optX = document.createElement("option");
+    optX.value = String(i);
+    optX.textContent = "input " + i;
+    liveAxisX.appendChild(optX);
+    const optY = optX.cloneNode(true);
+    liveAxisY.appendChild(optY);
+  }
+  liveAxisX.value = "0";
+  liveAxisY.value = nIn > 1 ? "1" : "0";
+
+  liveFixedInputsEl.innerHTML = "";
+  for (let i = 0; i < nIn; i++) {
+    const wrap = document.createElement("label");
+    wrap.dataset.inputIndex = String(i);
+    wrap.style.display = nIn > 2 ? "flex" : "none"; // only meaningful with more than 2 inputs
+    wrap.style.alignItems = "center";
+    wrap.style.gap = "6px";
+    wrap.innerHTML = "fixed input " + i +
+      " <input type='range' min='-2' max='2' step='0.05' value='0' style='width:100px'> <span>0.00</span>";
+    const range = wrap.querySelector("input");
+    const span = wrap.querySelector("span");
+    range.addEventListener("input", () => {
+      span.textContent = parseFloat(range.value).toFixed(2);
+      renderLivePreview();
+    });
+    liveFixedInputsEl.appendChild(wrap);
+  }
+
+  renderLivePreview();
+}
+
+function getFixedInputValue(i) {
+  const wrap = liveFixedInputsEl.querySelector('label[data-input-index="' + i + '"]');
+  return wrap ? parseFloat(wrap.querySelector("input").value) || 0 : 0;
+}
+
+function renderLivePreview() {
+  if (!loadedNetwork) return;
+  const axisX = parseInt(liveAxisX.value, 10);
+  const axisY = parseInt(liveAxisY.value, 10);
+  if (axisX === axisY) {
+    liveInfo.textContent = "Pick two different axes.";
+    return;
+  }
+
+  const xMin = parseFloat(liveXMin.value), xMax = parseFloat(liveXMax.value);
+  const yMin = parseFloat(liveYMin.value), yMax = parseFloat(liveYMax.value);
+  const n = LIVE_RESOLUTION;
+  liveCanvas.width = n;
+  liveCanvas.height = n;
+  const img = liveCtx.createImageData(n, n);
+
+  const input = new Float64Array(loadedNetwork.n_inputs);
+  for (let i = 0; i < input.length; i++) input[i] = getFixedInputValue(i);
+
+  const nOut = loadedNetwork.n_outputs;
+  for (let row = 0; row < n; row++) {
+    input[axisY] = yMax - (yMax - yMin) * (n > 1 ? row / (n - 1) : 0);
+    for (let col = 0; col < n; col++) {
+      input[axisX] = xMin + (xMax - xMin) * (n > 1 ? col / (n - 1) : 0);
+      const output = nnForward(loadedNetwork, input);
+
+      let r, g, b;
+      if (nOut === 1) {
+        let v = output[0];
+        if (v < 0) v = 0;
+        if (v > 1) v = 1;
+        r = g = b = Math.floor(v * 255); // matches nn_export.c's (unsigned char)(v * 255.0) truncation
+      } else {
+        let best = 0;
+        for (let o = 1; o < nOut; o++) if (output[o] > output[best]) best = o;
+        [r, g, b] = LIVE_PALETTE[best % LIVE_PALETTE.length];
+      }
+      const idx = (row * n + col) * 4;
+      img.data[idx] = r;
+      img.data[idx + 1] = g;
+      img.data[idx + 2] = b;
+      img.data[idx + 3] = 255;
+    }
+  }
+  liveCtx.putImageData(img, 0, 0);
+  liveInfo.textContent = "axes: input " + axisX + " (x), input " + axisY + " (y) — " + nOut + " output(s)";
+}
+
+[liveAxisX, liveAxisY, liveXMin, liveXMax, liveYMin, liveYMax].forEach((el) => {
+  el.addEventListener("change", renderLivePreview);
+  el.addEventListener("input", renderLivePreview);
+});
+
+document.getElementById("networkInput").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  try {
+    const net = parseTrainedNetwork(await file.text());
+    currentArchitecture = [net.layers[0].n_inputs, ...net.layers.map((l) => l.n_outputs)];
+    drawNetworkDiagram();
+    setupLivePreview(net);
+  } catch (err) {
+    alert("Could not parse network file: " + err.message);
+  }
+});
+
+/* ---------- rendering ---------- */
+function renderMeta() {
+  if (!meta) {
+    metaInfo.innerHTML = "<dt>architecture</dt><dd>—</dd><dt>learning rate</dt><dd>—</dd>" +
+                          "<dt>epochs</dt><dd>—</dd><dt>frame stride</dt><dd>—</dd>";
+    return;
+  }
+  const arch = Array.isArray(meta.architecture) ? meta.architecture.join(" → ") : "—";
+  metaInfo.innerHTML =
+    "<dt>architecture</dt><dd>" + arch + "</dd>" +
+    "<dt>learning rate</dt><dd>" + (meta.learning_rate ?? "—") + "</dd>" +
+    "<dt>epochs</dt><dd>" + (meta.epochs ?? "—") + "</dd>" +
+    "<dt>frame stride</dt><dd>" + (meta.frame_every ?? "—") + " iterations</dd>";
+  if (Array.isArray(meta.architecture)) {
+    currentArchitecture = meta.architecture;
+    drawNetworkDiagram();
+  }
+}
+
+/* Draws the network topology (neurons as dots, full connections between
+ * consecutive layers as lines) for currentArchitecture, e.g. [2, 8, 1].
+ * This is a structural diagram, not a weight visualization: all edges are
+ * drawn the same, since not every source (meta.json) carries actual weights. */
+function drawNetworkDiagram() {
+  const w = networkCanvas.width, h = networkCanvas.height;
+  networkCtx.clearRect(0, 0, w, h);
+  if (!Array.isArray(currentArchitecture) || currentArchitecture.length === 0) return;
+
+  const arch = currentArchitecture;
+  const padX = 28, padY = 18, labelH = 16;
+  const usableH = h - 2 * padY - labelH;
+  const layerX = arch.map((_, i) => arch.length === 1 ? w / 2 : padX + (i * (w - 2 * padX)) / (arch.length - 1));
+  const positions = arch.map((count, li) => {
+    const x = layerX[li];
+    return Array.from({ length: count }, (_, ni) => ({
+      x, y: count === 1 ? padY + usableH / 2 : padY + (ni * usableH) / (count - 1),
+    }));
+  });
+
+  networkCtx.strokeStyle = "rgba(95, 176, 255, 0.25)";
+  networkCtx.lineWidth = 1;
+  for (let li = 0; li < positions.length - 1; li++) {
+    for (const a of positions[li]) {
+      for (const b of positions[li + 1]) {
+        networkCtx.beginPath();
+        networkCtx.moveTo(a.x, a.y);
+        networkCtx.lineTo(b.x, b.y);
+        networkCtx.stroke();
+      }
+    }
+  }
+
+  positions.forEach((layer, li) => {
+    const isInput = li === 0;
+    const isOutput = li === positions.length - 1;
+    networkCtx.fillStyle = isInput ? "#5fb0ff" : isOutput ? "#ffb45f" : "#9a9ca3";
+    for (const p of layer) {
+      networkCtx.beginPath();
+      networkCtx.arc(p.x, p.y, 6, 0, Math.PI * 2);
+      networkCtx.fill();
+      networkCtx.strokeStyle = "#14151a";
+      networkCtx.lineWidth = 1.5;
+      networkCtx.stroke();
+    }
+  });
+
+  networkCtx.fillStyle = "#9a9ca3";
+  networkCtx.font = "11px -apple-system, Segoe UI, Helvetica, Arial, sans-serif";
+  networkCtx.textAlign = "center";
+  arch.forEach((count, li) => {
+    networkCtx.fillText(String(count), layerX[li], h - 4);
+  });
+}
+
+function renderFrame() {
+  if (frames.length === 0) {
+    frameLabel.textContent = "no frames loaded";
+    frameCtx.clearRect(0, 0, frameCanvas.width, frameCanvas.height);
+    return;
+  }
+  const frame = frames[currentFrame];
+  const { width, height, pixels } = frame.ppm;
+  frameCanvas.width = width;
+  frameCanvas.height = height;
+  const img = frameCtx.createImageData(width, height);
+  for (let i = 0; i < width * height; i++) {
+    img.data[i * 4 + 0] = pixels[i * 3 + 0];
+    img.data[i * 4 + 1] = pixels[i * 3 + 1];
+    img.data[i * 4 + 2] = pixels[i * 3 + 2];
+    img.data[i * 4 + 3] = 255;
+  }
+  frameCtx.putImageData(img, 0, 0);
+  frameLabel.textContent = "frame " + (currentFrame + 1) + "/" + frames.length + " — iteration " + frame.iteration;
+  drawChart();
+}
+
+function drawChart() {
+  const w = chartCanvas.width, h = chartCanvas.height;
+  chartCtx.clearRect(0, 0, w, h);
+  if (historyRows.length === 0) return;
+
+  const pad = 24;
+  const maxIter = historyRows[historyRows.length - 1].iteration || 1;
+  const maxLoss = Math.max(...historyRows.map((r) => r.loss), 1e-9);
+
+  function xOf(iter) { return pad + (iter / maxIter) * (w - 2 * pad); }
+  function yOfLoss(v) { return h - pad - (v / maxLoss) * (h - 2 * pad); }
+  function yOfAcc(v) { return h - pad - v * (h - 2 * pad); }
+
+  function drawSeries(yOf, key, color) {
+    chartCtx.beginPath();
+    chartCtx.strokeStyle = color;
+    chartCtx.lineWidth = 2;
+    historyRows.forEach((row, i) => {
+      const x = xOf(row.iteration), y = yOf(row[key]);
+      if (i === 0) chartCtx.moveTo(x, y); else chartCtx.lineTo(x, y);
+    });
+    chartCtx.stroke();
+  }
+  drawSeries(yOfLoss, "loss", "#5fb0ff");
+  drawSeries(yOfAcc, "accuracy", "#ffb45f");
+
+  if (frames.length > 0) {
+    const x = xOf(frames[currentFrame].iteration);
+    chartCtx.strokeStyle = "rgba(255,255,255,0.5)";
+    chartCtx.lineWidth = 1;
+    chartCtx.beginPath();
+    chartCtx.moveTo(x, pad);
+    chartCtx.lineTo(x, h - pad);
+    chartCtx.stroke();
+  }
+}
+
+/* ---------- playback controls ---------- */
+frameSlider.addEventListener("input", () => {
+  currentFrame = parseInt(frameSlider.value, 10);
+  renderFrame();
+});
+
+document.getElementById("prevBtn").addEventListener("click", () => step(-1));
+document.getElementById("nextBtn").addEventListener("click", () => step(1));
+
+function step(delta) {
+  if (frames.length === 0) return;
+  currentFrame = Math.max(0, Math.min(frames.length - 1, currentFrame + delta));
+  frameSlider.value = String(currentFrame);
+  renderFrame();
+}
+
+speedSlider.addEventListener("input", () => {
+  speedLabel.textContent = speedSlider.value + "x";
+  if (playing) { stopPlayback(); startPlayback(); }
+});
+
+playBtn.addEventListener("click", () => {
+  if (playing) stopPlayback(); else startPlayback();
+});
+
+function startPlayback() {
+  if (frames.length === 0) return;
+  playing = true;
+  playBtn.innerHTML = "&#10074;&#10074;";
+  const baseIntervalMs = 300;
+  const speed = parseFloat(speedSlider.value);
+  playTimer = setInterval(() => {
+    currentFrame = (currentFrame + 1) % frames.length;
+    frameSlider.value = String(currentFrame);
+    renderFrame();
+  }, baseIntervalMs / speed);
+}
+
+function stopPlayback() {
+  playing = false;
+  playBtn.innerHTML = "&#9654;";
+  clearInterval(playTimer);
+  playTimer = null;
+}
+
+renderMeta();
+</script>
+</body>
+</html>

@@ -119,6 +119,13 @@ nn_status nn_train_genetic(nn_population *pop, nn_fitness_fn fitness, void *fitn
             pop->fitness[i] = fitness(pop->networks[i], fitness_ctx);
         }
 
+        if (params->on_generation != NULL) {
+            size_t every = params->on_generation_every == 0 ? 1 : params->on_generation_every;
+            if (gen % every == 0) {
+                params->on_generation(pop, gen, params->on_generation_ctx);
+            }
+        }
+
         nn_real best_fitness = pop->fitness[0];
         for (size_t i = 1; i < n; i++) {
             if (pop->fitness[i] > best_fitness) {

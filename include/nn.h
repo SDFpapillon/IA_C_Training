@@ -299,12 +299,19 @@ nn_status nn_backprop(const nn_network *net, nn_backprop_buffer *buf,
 /* Supervised training                                                    */
 /* --------------------------------------------------------------------- */
 
+/* Called from training loops to report progress. Higher is better is not
+ * implied here: iteration/generation is a plain 0-based counter. */
+typedef void (*nn_step_fn)(const nn_network *net, size_t iteration, void *ctx);
+
 typedef struct nn_train_params {
     nn_real learning_rate;
     size_t epochs;
     size_t batch_size;    /* 0 means "the whole dataset" (batch gradient descent) */
     nn_loss loss;
     uint64_t shuffle_seed; /* reproducible dataset shuffling between epochs */
+    nn_step_fn on_step;    /* optional, NULL to disable */
+    void *on_step_ctx;
+    size_t on_step_every;  /* call on_step every this many epochs (0 treated as 1) */
 } nn_train_params;
 
 /*
@@ -392,6 +399,10 @@ void nn_crossover_apply(const nn_real *parent_a, const nn_real *parent_b, nn_rea
 /* Add Gaussian noise (mean 0, given stddev) to each of genome's n values, independently, with probability rate. */
 void nn_mutate(nn_real *genome, size_t n, nn_real rate, nn_real stddev, nn_rng *rng);
 
+/* Called once per evaluated generation, after fitness is computed. pop->fitness[i]
+ * is valid for every individual; the population itself is not to be modified. */
+typedef void (*nn_generation_fn)(const nn_population *pop, size_t generation, void *ctx);
+
 typedef struct nn_genetic_params {
     size_t generations;
     int has_target_fitness;      /* if nonzero, stop early once best fitness >= target_fitness */
@@ -405,6 +416,9 @@ typedef struct nn_genetic_params {
     uint64_t seed;                /* RNG seed for selection/crossover/mutation */
     nn_pre_eval_fn pre_eval_hook; /* optional, NULL to disable */
     void *pre_eval_ctx;
+    nn_generation_fn on_generation; /* optional, NULL to disable */
+    void *on_generation_ctx;
+    size_t on_generation_every;     /* call on_generation every this many generations (0 treated as 1) */
 } nn_genetic_params;
 
 /*
@@ -415,6 +429,61 @@ typedef struct nn_genetic_params {
  */
 nn_status nn_train_genetic(nn_population *pop, nn_fitness_fn fitness, void *fitness_ctx,
                             const nn_genetic_params *params);
+
+/* --------------------------------------------------------------------- */
+/* History logging (CSV)                                                 */
+/* --------------------------------------------------------------------- */
+
+/*
+ * Logs "iteration,loss,accuracy" rows to a CSV file. Wire it into
+ * nn_train_params as: params.on_step = nn_history_log_step;
+ * params.on_step_ctx = logger;
+ */
+typedef struct nn_history_logger nn_history_logger;
+
+/* net and dataset must outlive the logger: net is re-evaluated on dataset at each logged step. */
+nn_status nn_history_logger_create(const char *path, const nn_network *net, const nn_dataset *dataset,
+                                    nn_loss loss, nn_history_logger **out);
+void nn_history_logger_free(nn_history_logger *logger);
+void nn_history_log_step(const nn_network *net, size_t iteration, void *ctx);
+
+/*
+ * Logs "generation,best_fitness,avg_fitness" rows to a CSV file, reading
+ * directly from pop->fitness. Wire it into nn_genetic_params as:
+ * params.on_generation = nn_fitness_log_generation; params.on_generation_ctx = logger;
+ */
+typedef struct nn_fitness_logger nn_fitness_logger;
+
+nn_status nn_fitness_logger_create(const char *path, nn_fitness_logger **out);
+void nn_fitness_logger_free(nn_fitness_logger *logger);
+void nn_fitness_log_generation(const nn_population *pop, size_t generation, void *ctx);
+
+/* --------------------------------------------------------------------- */
+/* Export (CSV / PPM)                                                     */
+/* --------------------------------------------------------------------- */
+
+/*
+ * Export net's predictions on dataset as CSV: one row per sample, with
+ * dataset->n_inputs input columns, dataset->n_outputs target columns, then
+ * dataset->n_outputs predicted columns. Useful for regression (predicted
+ * vs. expected) and for post-hoc inspection in general.
+ */
+nn_status nn_export_predictions_csv(const nn_network *net, nn_forward_buffer *buf,
+                                     const nn_dataset *dataset, const char *path);
+
+/*
+ * Export a binary PPM (P6) image of net's output over a 2D grid: axis_x
+ * and axis_y select which two of net's inputs are swept over
+ * [x_min, x_max] x [y_min, y_max] (width x height pixels); every other
+ * input is held at fixed_inputs's value (length net->layers[0].n_inputs).
+ * A single-output net is rendered in grayscale (output clamped to
+ * [0, 1]); a multi-output net is rendered by argmax(output), one flat
+ * color per class from a small fixed palette.
+ */
+nn_status nn_export_decision_boundary_ppm(const nn_network *net, nn_forward_buffer *buf,
+                                           const nn_real *fixed_inputs, size_t axis_x, size_t axis_y,
+                                           nn_real x_min, nn_real x_max, nn_real y_min, nn_real y_max,
+                                           size_t width, size_t height, const char *path);
 
 #ifdef __cplusplus
 }
